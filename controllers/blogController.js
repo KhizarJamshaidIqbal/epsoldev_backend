@@ -359,6 +359,18 @@ export const getRelatedBlogs = async (req, res) => {
 // Get all published blog posts for public consumption
 export const getPublishedBlogs = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, returning empty blog list');
+      return res.status(200).json({
+        blogs: [],
+        totalPages: 0,
+        currentPage: 1,
+        totalItems: 0,
+        message: 'Database temporarily unavailable'
+      });
+    }
+
     const { page = 1, limit = 10, category, search } = req.query;
     
     // Build query based on filters - only show published posts
@@ -515,4 +527,4 @@ export const incrementViewCount = async (req, res) => {
     console.error('Error incrementing view count:', error);
     return res.status(500).json({ message: 'Failed to increment view count', error: error.message });
   }
-}; 
+};

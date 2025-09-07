@@ -2,14 +2,17 @@ import mongoose from 'mongoose';
 
 // Middleware to check if database is connected
 const dbConnectionCheck = (req, res, next) => {
-  // If mongoose is not connected, return 503 Service Unavailable
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      message: 'Database connection unavailable'
-    });
+  // Add database connection status to request object
+  req.dbConnected = mongoose.connection.readyState === 1;
+  
+  // Log connection status for debugging
+  if (!req.dbConnected) {
+    console.warn(`Database not connected for ${req.method} ${req.path}. Connection state: ${mongoose.connection.readyState}`);
   }
   
+  // Continue to next middleware regardless of database status
+  // Individual controllers can handle database unavailability
   next();
 };
 
-export default dbConnectionCheck; 
+export default dbConnectionCheck;
