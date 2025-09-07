@@ -26,6 +26,7 @@ export const getAllProjects = async (req, res) => {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
+        { shortDescription: { $regex: search, $options: 'i' } },
         { client: { $regex: search, $options: 'i' } }
       ];
     }
