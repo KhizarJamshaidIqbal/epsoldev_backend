@@ -417,6 +417,12 @@ export const getPublishedBlogs = async (req, res) => {
 // Get featured blog posts (latest published posts)
 export const getFeaturedBlogs = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, returning empty featured blogs list');
+      return res.status(200).json([]);
+    }
+
     const { limit = 3 } = req.query;
     
     const featuredBlogs = await Blog.find({ status: 'published' })
@@ -443,6 +449,12 @@ export const getFeaturedBlogs = async (req, res) => {
 // Get a blog post by slug for public viewing
 export const getBlogBySlug = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, cannot fetch blog by slug');
+      return res.status(503).json({ message: 'Database temporarily unavailable' });
+    }
+
     const { slug } = req.params;
     console.log('getBlogBySlug called with slug:', slug);
     

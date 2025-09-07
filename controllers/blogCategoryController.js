@@ -4,6 +4,12 @@ import Blog from '../models/Blog.js';
 // Get all categories
 export const getAllCategories = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, returning empty categories list');
+      return res.status(200).json([]);
+    }
+
     const categories = await BlogCategory.find().sort({ order: 1, name: 1 });
     return res.status(200).json(categories);
   } catch (error) {
@@ -202,6 +208,12 @@ export const getBlogsByCategory = async (req, res) => {
 // Get all published categories for public use
 export const getPublicCategories = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, returning empty public categories list');
+      return res.status(200).json([]);
+    }
+
     const categories = await BlogCategory.find().sort({ order: 1, name: 1 });
     return res.status(200).json(categories);
   } catch (error) {
@@ -213,6 +225,19 @@ export const getPublicCategories = async (req, res) => {
 // Get blogs by category slug for public view (only published blogs)
 export const getBlogsByCategorySlug = async (req, res) => {
   try {
+    // Check if database is connected
+    if (!req.dbConnected) {
+      console.warn('Database not connected, returning empty blogs by category');
+      return res.status(200).json({
+        blogs: [],
+        category: null,
+        totalPages: 0,
+        currentPage: 1,
+        totalItems: 0,
+        message: 'Database temporarily unavailable'
+      });
+    }
+
     const { slug } = req.params;
     const { page = 1, limit = 12 } = req.query;
     
@@ -249,4 +274,4 @@ export const getBlogsByCategorySlug = async (req, res) => {
     console.error('Error fetching blogs by category slug:', error);
     return res.status(500).json({ message: 'Failed to fetch blogs', error: error.message });
   }
-}; 
+};
