@@ -56,7 +56,14 @@ export const getAllProjects = async (req, res) => {
 // Get a single project by ID or slug
 export const getProjectById = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Handle both :id and :slug parameters
+    const id = req.params.id || req.params.slug;
+    
+    // Check if id exists
+    if (!id) {
+      return res.status(400).json({ message: 'Project ID or slug is required' });
+    }
+    
     let project;
 
     // Check if the ID is a valid MongoDB ObjectId
