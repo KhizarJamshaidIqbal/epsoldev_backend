@@ -15,6 +15,7 @@ const router = express.Router();
 // Public routes
 router.get('/', getAllProjects);
 router.get('/featured', getFeaturedProjects);
+router.get('/slug/:slug', getProjectById); // Specific route for slug-based fetching
 router.get('/:id', getProjectById);
 
 // Protected routes (admin only) - temporarily public for testing

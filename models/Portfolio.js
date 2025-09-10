@@ -85,12 +85,23 @@ PortfolioSchema.pre('save', function(next) {
 });
 
 // Generate slug from title if not provided
-PortfolioSchema.pre('save', function(next) {
+PortfolioSchema.pre('save', async function(next) {
   if (this.title && (!this.slug || this.isModified('title'))) {
-    this.slug = this.title
+    let baseSlug = this.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    
+    // Ensure slug is unique
+    let slug = baseSlug;
+    let counter = 1;
+    
+    while (await this.constructor.findOne({ slug, _id: { $ne: this._id } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    this.slug = slug;
   }
   next();
 });
