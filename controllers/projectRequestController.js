@@ -1,4 +1,5 @@
 import ProjectRequest from '../models/ProjectRequest.js';
+import { sendProjectRequestNotification, sendClientAcknowledgment } from '../services/emailService.js';
 
 // Get all project requests
 export const getAllProjectRequests = async (req, res) => {
@@ -74,6 +75,28 @@ export const createProjectRequest = async (req, res) => {
     console.log('New project request object before save:', newProjectRequest);
     const savedProjectRequest = await newProjectRequest.save();
     console.log('Saved project request:', savedProjectRequest);
+    
+    // Send email notifications
+    try {
+      // Send notification email to you (epsoldev@gmail.com)
+      const notificationResult = await sendProjectRequestNotification(savedProjectRequest);
+      console.log('Notification email result:', notificationResult);
+      
+      // Send acknowledgment email to the client
+      const acknowledgmentResult = await sendClientAcknowledgment(savedProjectRequest);
+      console.log('Client acknowledgment email result:', acknowledgmentResult);
+      
+      // If both emails are successful, include this info in the response
+      if (notificationResult.success && acknowledgmentResult.success) {
+        console.log('✅ Both emails sent successfully!');
+      } else {
+        console.warn('⚠️ Some emails may not have been sent. Check logs.');
+      }
+    } catch (emailError) {
+      // Don't fail the entire request if email fails - just log it
+      console.error('Email notification error (request still successful):', emailError);
+    }
+    
     return res.status(201).json(savedProjectRequest);
   } catch (error) {
     console.error('Error creating project request:', error);
