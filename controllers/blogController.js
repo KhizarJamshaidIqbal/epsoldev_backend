@@ -144,13 +144,7 @@ export const getAllBlogs = async (req, res) => {
       .exec();
 
     // Transform blogs to match frontend expectations
-    const transformedBlogs = blogs.map(blog => ({
-      ...blog.toObject(),
-      authorName: blog.author?.name || '',
-      featuredImage: blog.image || '',
-      metaTitle: blog.title,
-      metaDescription: blog.excerpt
-    }));
+    const transformedBlogs = await transformBlogsData(blogs);
 
     // Get total documents
     const count = await Blog.countDocuments(query);
@@ -445,13 +439,7 @@ export const getPublishedBlogs = async (req, res) => {
       .exec();
 
     // Transform blogs to match frontend expectations
-    const transformedBlogs = blogs.map(blog => ({
-      ...blog.toObject(),
-      authorName: blog.author?.name || '',
-      featuredImage: blog.image || '',
-      metaTitle: blog.title,
-      metaDescription: blog.excerpt
-    }));
+    const transformedBlogs = await transformBlogsData(blogs);
 
     // Get total documents
     const count = await Blog.countDocuments(query);
