@@ -81,6 +81,9 @@ const transformBlogsData = async (blogs) => {
   let categoryMap = new Map();
   let tagMap = new Map();
 
+  console.log('TransformBlogsData - Processing blogs:', blogs.length);
+  console.log('TransformBlogsData - Sample blog categories:', blogs.slice(0, 3).map(b => ({ title: b.title, category: b.category, displayCategory: b.displayCategory })));
+
   try {
     // Import models dynamically to avoid circular dependencies
     const Category = (await import('../models/BlogCategory.js')).default;
@@ -88,8 +91,11 @@ const transformBlogsData = async (blogs) => {
 
     // Get all unique category IDs
     const categoryIds = [...new Set(blogs.map(blog => blog.category).filter(Boolean))].filter(id => id.match(/^[0-9a-fA-F]{24}$/));
+    console.log('TransformBlogsData - Category IDs found:', categoryIds);
+    
     if (categoryIds.length > 0) {
       const categories = await Category.find({ _id: { $in: categoryIds } });
+      console.log('TransformBlogsData - Categories from DB:', categories.map(c => ({ id: c._id, name: c.name })));
       categories.forEach(cat => categoryMap.set(cat._id.toString(), cat.name));
     }
 
@@ -104,21 +110,30 @@ const transformBlogsData = async (blogs) => {
     console.error('TransformBlogsData - Error stack:', modelError.stack);
   }
 
-  return blogs.map(blog => ({
-    ...blog.toObject(),
-    authorName: blog.author?.name || '',
-    featuredImage: blog.image || '',
-    metaTitle: blog.title,
-    metaDescription: blog.excerpt,
-    categoryName: blog.category?.match(/^[0-9a-fA-F]{24}$/) ? 
+  const result = blogs.map(blog => {
+    const categoryName = blog.category?.match(/^[0-9a-fA-F]{24}$/) ? 
       (categoryMap.get(blog.category?.toString()) || 'Uncategorized') : 
-      (blog.category || 'Uncategorized'),
-    tagNames: (blog.tags || []).map(tag => 
-      tag.match(/^[0-9a-fA-F]{24}$/) ? 
-        (tagMap.get(tag.toString()) || tag) : 
-        tag
-    ).join(', ')
-  }));
+      (blog.category || 'Uncategorized');
+    
+    console.log(`TransformBlogsData - Blog "${blog.title}": category="${blog.category}", categoryName="${categoryName}"`);
+    
+    return {
+      ...blog.toObject(),
+      authorName: blog.author?.name || '',
+      featuredImage: blog.image || '',
+      metaTitle: blog.title,
+      metaDescription: blog.excerpt,
+      categoryName: categoryName,
+      tagNames: (blog.tags || []).map(tag => 
+        tag.match(/^[0-9a-fA-F]{24}$/) ? 
+          (tagMap.get(tag.toString()) || tag) : 
+          tag
+      ).join(', ')
+    };
+  });
+  
+  console.log('TransformBlogsData - Final result sample:', result.slice(0, 2).map(r => ({ title: r.title, categoryName: r.categoryName })));
+  return result;
 };
 
 // Get all blog posts (with pagination)
@@ -203,6 +218,9 @@ export const getBlogById = async (req, res) => {
 // Create a new blog post
 export const createBlog = async (req, res) => {
   try {
+    console.log('CreateBlog - Request body category:', req.body.category);
+    console.log('CreateBlog - Request body displayCategory:', req.body.displayCategory);
+    
     // Resolve category/displayCategory to satisfy schema requirements
     let resolvedCategory = req.body.category;
     let resolvedDisplayCategory = req.body.displayCategory;
@@ -211,10 +229,13 @@ export const createBlog = async (req, res) => {
         const Category = (await import('../models/BlogCategory.js')).default;
         // If category looks like an ObjectId, try to fetch its name
         if (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/)) {
+          console.log('CreateBlog - Resolving category ID to name:', resolvedCategory);
           const foundCategory = await Category.findById(resolvedCategory);
+          console.log('CreateBlog - Found category:', foundCategory);
           if (foundCategory?.name) {
             resolvedCategory = foundCategory.name;
             resolvedDisplayCategory = resolvedDisplayCategory || foundCategory.name;
+            console.log('CreateBlog - Resolved to category name:', resolvedCategory);
           }
         }
       }
@@ -229,6 +250,9 @@ export const createBlog = async (req, res) => {
         resolvedDisplayCategory = resolvedCategory;
       }
     }
+    
+    console.log('CreateBlog - Final resolved category:', resolvedCategory);
+    console.log('CreateBlog - Final resolved displayCategory:', resolvedDisplayCategory);
 
     // Transform frontend data to database format
     const blogData = {
