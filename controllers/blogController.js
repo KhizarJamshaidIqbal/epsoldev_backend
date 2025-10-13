@@ -209,9 +209,38 @@ export const getBlogById = async (req, res) => {
 // Create a new blog post
 export const createBlog = async (req, res) => {
   try {
+    // Resolve category/displayCategory to satisfy schema requirements
+    let resolvedCategory = req.body.category;
+    let resolvedDisplayCategory = req.body.displayCategory;
+    try {
+      if (!resolvedDisplayCategory || !resolvedCategory) {
+        const Category = (await import('../models/BlogCategory.js')).default;
+        // If category looks like an ObjectId, try to fetch its name
+        if (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/)) {
+          const foundCategory = await Category.findById(resolvedCategory);
+          if (foundCategory?.name) {
+            resolvedCategory = foundCategory.name;
+            resolvedDisplayCategory = resolvedDisplayCategory || foundCategory.name;
+          }
+        }
+      }
+      // Fallback: if still missing displayCategory, mirror category value
+      if (!resolvedDisplayCategory && resolvedCategory) {
+        resolvedDisplayCategory = resolvedCategory;
+      }
+    } catch (catErr) {
+      // Do not fail creation because category name resolution failed
+      console.warn('Category resolution warning (createBlog):', catErr?.message);
+      if (!resolvedDisplayCategory && resolvedCategory) {
+        resolvedDisplayCategory = resolvedCategory;
+      }
+    }
+
     // Transform frontend data to database format
     const blogData = {
       ...req.body,
+      category: resolvedCategory,
+      displayCategory: resolvedDisplayCategory,
       author: {
         name: req.body.authorName || 'Admin',
         avatar: req.body.authorAvatar || 'https://via.placeholder.com/150'
@@ -258,9 +287,35 @@ export const updateBlog = async (req, res) => {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
+    // Resolve category/displayCategory similar to create path
+    let resolvedCategory = req.body.category ?? blog.category;
+    let resolvedDisplayCategory = req.body.displayCategory ?? blog.displayCategory;
+    try {
+      if (!resolvedDisplayCategory || (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/))) {
+        const Category = (await import('../models/BlogCategory.js')).default;
+        if (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/)) {
+          const foundCategory = await Category.findById(resolvedCategory);
+          if (foundCategory?.name) {
+            resolvedCategory = foundCategory.name;
+            resolvedDisplayCategory = resolvedDisplayCategory || foundCategory.name;
+          }
+        }
+      }
+      if (!resolvedDisplayCategory && resolvedCategory) {
+        resolvedDisplayCategory = resolvedCategory;
+      }
+    } catch (catErr) {
+      console.warn('Category resolution warning (updateBlog):', catErr?.message);
+      if (!resolvedDisplayCategory && resolvedCategory) {
+        resolvedDisplayCategory = resolvedCategory;
+      }
+    }
+
     // Transform frontend data to database format
     const updateData = {
       ...req.body,
+      category: resolvedCategory,
+      displayCategory: resolvedDisplayCategory,
       author: {
         name: req.body.authorName || blog.author?.name || 'Admin',
         avatar: req.body.authorAvatar || blog.author?.avatar || 'https://via.placeholder.com/150'
