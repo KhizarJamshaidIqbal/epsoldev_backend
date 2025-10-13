@@ -16,7 +16,7 @@ export const getAllProjectRequests = async (req, res) => {
     if (priority && priority !== 'all') {
       query.priority = priority;
     }
-
+    // Search functionality by clientName, companyName, email, projectType, description
     // Search functionality
     if (search) {
       query.$or = [
@@ -29,7 +29,7 @@ export const getAllProjectRequests = async (req, res) => {
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     const projectRequests = await ProjectRequest.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -75,17 +75,17 @@ export const createProjectRequest = async (req, res) => {
     console.log('New project request object before save:', newProjectRequest);
     const savedProjectRequest = await newProjectRequest.save();
     console.log('Saved project request:', savedProjectRequest);
-    
+
     // Send email notifications
     try {
       // Send notification email to you (epsoldev@gmail.com)
       const notificationResult = await sendProjectRequestNotification(savedProjectRequest);
       console.log('Notification email result:', notificationResult);
-      
+
       // Send acknowledgment email to the client
       const acknowledgmentResult = await sendClientAcknowledgment(savedProjectRequest);
       console.log('Client acknowledgment email result:', acknowledgmentResult);
-      
+
       // If both emails are successful, include this info in the response
       if (notificationResult.success && acknowledgmentResult.success) {
         console.log('✅ Both emails sent successfully!');
@@ -96,7 +96,7 @@ export const createProjectRequest = async (req, res) => {
       // Don't fail the entire request if email fails - just log it
       console.error('Email notification error (request still successful):', emailError);
     }
-    
+
     return res.status(201).json(savedProjectRequest);
   } catch (error) {
     console.error('Error creating project request:', error);
@@ -178,7 +178,7 @@ export const getProjectRequestsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
     const { limit = 10 } = req.query;
-    
+
     const projectRequests = await ProjectRequest.find({ status })
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
