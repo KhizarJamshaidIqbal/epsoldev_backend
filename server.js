@@ -5,14 +5,16 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { registerRoutes } from './routes/index.js';
-import dbConnectionCheck from './middleware/dbConnectionCheck.js';
 
 // Configure path for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from server/.env
+const envPath = path.join(__dirname, '.env');
+console.log('📁 Loading .env from:', envPath);
+dotenv.config({ path: envPath });
+console.log('✅ Environment loaded. JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
 // Create Express app
 const app = express();
@@ -20,44 +22,48 @@ const PORT = process.env.PORT || 5001;
 
 // Connect to MongoDB
 let isDbConnected = false;
-
-// Initialize database connection
-const initializeDB = async () => {
-  try {
-    isDbConnected = await connectDB();
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    // Continue without database connection for now
-  }
-};
-
-// Call DB initialization (non-blocking)
-initializeDB();
+try {
+  isDbConnected = await connectDB();
+} catch (error) {
+  console.error('Database connection failed:', error);
+  // Continue without database connection for now
+}
 
 // Core middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:8080', 
-    'http://localhost:3000',
-    'http://localhost:4173',
-    process.env.FRONTEND_URL,
-    process.env.CLIENT_URL,
-    'https://epsoldev.com',
-    'https://*.vercel.app'
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:8080', 
+      'http://localhost:3000',
+      'http://localhost:4173',
+      'https://epsoldev.com',
+      'https://www.epsoldev.com',
+      process.env.FRONTEND_URL,
+      process.env.CLIENT_URL
+    ].filter(Boolean);
+    
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches allowed origins or Vercel preview deployments
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static file serving
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Database connection check middleware
-app.use('/api', dbConnectionCheck);
 
 // API routes
 try {
