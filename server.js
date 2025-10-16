@@ -20,12 +20,19 @@ const PORT = process.env.PORT || 5001;
 
 // Connect to MongoDB
 let isDbConnected = false;
-try {
-  isDbConnected = await connectDB();
-} catch (error) {
-  console.error('Database connection failed:', error);
-  // Continue without database connection for now
-}
+
+// Initialize database connection
+const initializeDB = async () => {
+  try {
+    isDbConnected = await connectDB();
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    // Continue without database connection for now
+  }
+};
+
+// Call DB initialization (non-blocking)
+initializeDB();
 
 // Core middleware
 app.use(cors({
