@@ -6,7 +6,14 @@ export const auth = (req, res, next) => {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
     
+    console.log('🔐 Auth Middleware - Headers:', {
+      authorization: authHeader ? `${authHeader.substring(0, 20)}...` : 'none',
+      path: req.path,
+      method: req.method
+    });
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth failed: No token or invalid format');
       return res.status(401).json({ 
         message: 'Access denied. No token provided or invalid format.' 
       });
@@ -15,9 +22,15 @@ export const auth = (req, res, next) => {
     // Extract token from "Bearer TOKEN"
     const token = authHeader.substring(7);
 
-    // Verify token
+    // Verify token (read JWT_SECRET at runtime)
     const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+    console.log('🔑 Verifying token with secret:', {
+      configured: !!process.env.JWT_SECRET,
+      preview: JWT_SECRET.substring(0, 20) + '...'
+    });
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    console.log('✅ Token verified successfully for user:', decoded.id);
 
     // Attach user info to request object
     req.user = decoded;
@@ -25,6 +38,7 @@ export const auth = (req, res, next) => {
 
     next();
   } catch (error) {
+    console.log('❌ Auth error:', error.name, error.message);
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ 
         message: 'Access denied. Token has expired.' 

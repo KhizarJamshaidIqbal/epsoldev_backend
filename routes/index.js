@@ -16,6 +16,7 @@ import contactDetailsRoutes from './contactDetailsRoutes.js';
 import faqRoutes from './faqRoutes.js';
 import contentRoutes from './contentRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
+import uploadRoutes from './uploadRoutes.js';
 // import dbRoutes from './dbRoutes.js'; // Temporarily disabled
 
 /**
@@ -43,6 +44,7 @@ export const registerRoutes = (app) => {
   apiRouter.use('/faqs', faqRoutes);
   apiRouter.use('/content', contentRoutes);
   apiRouter.use('/settings', settingsRoutes);
+  apiRouter.use('/upload', uploadRoutes);
   // apiRouter.use('/db', dbRoutes); // Temporarily disabled
   
   // Mount all routes under /api
@@ -70,6 +72,7 @@ export const registerRoutes = (app) => {
         faqs: '/api/faqs',
         content: '/api/content',
         settings: '/api/settings',
+        upload: '/api/upload',
         health: '/api/health'
       },
       timestamp: new Date().toISOString()

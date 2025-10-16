@@ -1,11 +1,27 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+// Get JWT configuration (read at runtime, not at module load)
+const getJWTConfig = () => {
+  const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+  const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || process.env.JWT_EXPIRE || '7d';
+  return { JWT_SECRET, JWT_EXPIRES_IN };
+};
 
 // Generate JWT token
 const generateToken = (userId) => {
+  const { JWT_SECRET, JWT_EXPIRES_IN } = getJWTConfig();
+  
+  // Log on first token generation to verify config
+  if (!generateToken.logged) {
+    console.log('🔐 JWT Configuration (at token generation):', {
+      secretConfigured: !!process.env.JWT_SECRET,
+      secretPreview: JWT_SECRET.substring(0, 20) + '...',
+      expiresIn: JWT_EXPIRES_IN
+    });
+    generateToken.logged = true;
+  }
+  
   return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 

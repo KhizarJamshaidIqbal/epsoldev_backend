@@ -81,9 +81,6 @@ const transformBlogsData = async (blogs) => {
   let categoryMap = new Map();
   let tagMap = new Map();
 
-  console.log('TransformBlogsData - Processing blogs:', blogs.length);
-  console.log('TransformBlogsData - Sample blog categories:', blogs.slice(0, 3).map(b => ({ title: b.title, category: b.category, displayCategory: b.displayCategory })));
-
   try {
     // Import models dynamically to avoid circular dependencies
     const Category = (await import('../models/BlogCategory.js')).default;
@@ -91,11 +88,8 @@ const transformBlogsData = async (blogs) => {
 
     // Get all unique category IDs
     const categoryIds = [...new Set(blogs.map(blog => blog.category).filter(Boolean))].filter(id => id.match(/^[0-9a-fA-F]{24}$/));
-    console.log('TransformBlogsData - Category IDs found:', categoryIds);
-    
     if (categoryIds.length > 0) {
       const categories = await Category.find({ _id: { $in: categoryIds } });
-      console.log('TransformBlogsData - Categories from DB:', categories.map(c => ({ id: c._id, name: c.name })));
       categories.forEach(cat => categoryMap.set(cat._id.toString(), cat.name));
     }
 
@@ -110,30 +104,21 @@ const transformBlogsData = async (blogs) => {
     console.error('TransformBlogsData - Error stack:', modelError.stack);
   }
 
-  const result = blogs.map(blog => {
-    const categoryName = blog.category?.match(/^[0-9a-fA-F]{24}$/) ? 
+  return blogs.map(blog => ({
+    ...blog.toObject(),
+    authorName: blog.author?.name || '',
+    featuredImage: blog.image || '',
+    metaTitle: blog.title,
+    metaDescription: blog.excerpt,
+    categoryName: blog.category?.match(/^[0-9a-fA-F]{24}$/) ? 
       (categoryMap.get(blog.category?.toString()) || 'Uncategorized') : 
-      (blog.category || 'Uncategorized');
-    
-    console.log(`TransformBlogsData - Blog "${blog.title}": category="${blog.category}", categoryName="${categoryName}"`);
-    
-    return {
-      ...blog.toObject(),
-      authorName: blog.author?.name || '',
-      featuredImage: blog.image || '',
-      metaTitle: blog.title,
-      metaDescription: blog.excerpt,
-      categoryName: categoryName,
-      tagNames: (blog.tags || []).map(tag => 
-        tag.match(/^[0-9a-fA-F]{24}$/) ? 
-          (tagMap.get(tag.toString()) || tag) : 
-          tag
-      ).join(', ')
-    };
-  });
-  
-  console.log('TransformBlogsData - Final result sample:', result.slice(0, 2).map(r => ({ title: r.title, categoryName: r.categoryName })));
-  return result;
+      (blog.category || 'Uncategorized'),
+    tagNames: (blog.tags || []).map(tag => 
+      tag.match(/^[0-9a-fA-F]{24}$/) ? 
+        (tagMap.get(tag.toString()) || tag) : 
+        tag
+    ).join(', ')
+  }));
 };
 
 // Get all blog posts (with pagination)
@@ -159,7 +144,13 @@ export const getAllBlogs = async (req, res) => {
       .exec();
 
     // Transform blogs to match frontend expectations
-    const transformedBlogs = await transformBlogsData(blogs);
+    const transformedBlogs = blogs.map(blog => ({
+      ...blog.toObject(),
+      authorName: blog.author?.name || '',
+      featuredImage: blog.image || '',
+      metaTitle: blog.title,
+      metaDescription: blog.excerpt
+    }));
 
     // Get total documents
     const count = await Blog.countDocuments(query);
@@ -218,47 +209,9 @@ export const getBlogById = async (req, res) => {
 // Create a new blog post
 export const createBlog = async (req, res) => {
   try {
-    console.log('CreateBlog - Request body category:', req.body.category);
-    console.log('CreateBlog - Request body displayCategory:', req.body.displayCategory);
-    
-    // Resolve category/displayCategory to satisfy schema requirements
-    let resolvedCategory = req.body.category;
-    let resolvedDisplayCategory = req.body.displayCategory;
-    try {
-      if (!resolvedDisplayCategory || !resolvedCategory) {
-        const Category = (await import('../models/BlogCategory.js')).default;
-        // If category looks like an ObjectId, try to fetch its name
-        if (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/)) {
-          console.log('CreateBlog - Resolving category ID to name:', resolvedCategory);
-          const foundCategory = await Category.findById(resolvedCategory);
-          console.log('CreateBlog - Found category:', foundCategory);
-          if (foundCategory?.name) {
-            resolvedCategory = foundCategory.name;
-            resolvedDisplayCategory = resolvedDisplayCategory || foundCategory.name;
-            console.log('CreateBlog - Resolved to category name:', resolvedCategory);
-          }
-        }
-      }
-      // Fallback: if still missing displayCategory, mirror category value
-      if (!resolvedDisplayCategory && resolvedCategory) {
-        resolvedDisplayCategory = resolvedCategory;
-      }
-    } catch (catErr) {
-      // Do not fail creation because category name resolution failed
-      console.warn('Category resolution warning (createBlog):', catErr?.message);
-      if (!resolvedDisplayCategory && resolvedCategory) {
-        resolvedDisplayCategory = resolvedCategory;
-      }
-    }
-    
-    console.log('CreateBlog - Final resolved category:', resolvedCategory);
-    console.log('CreateBlog - Final resolved displayCategory:', resolvedDisplayCategory);
-
     // Transform frontend data to database format
     const blogData = {
       ...req.body,
-      category: resolvedCategory,
-      displayCategory: resolvedDisplayCategory,
       author: {
         name: req.body.authorName || 'Admin',
         avatar: req.body.authorAvatar || 'https://via.placeholder.com/150'
@@ -305,35 +258,9 @@ export const updateBlog = async (req, res) => {
       return res.status(404).json({ message: 'Blog not found' });
     }
 
-    // Resolve category/displayCategory similar to create path
-    let resolvedCategory = req.body.category ?? blog.category;
-    let resolvedDisplayCategory = req.body.displayCategory ?? blog.displayCategory;
-    try {
-      if (!resolvedDisplayCategory || (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/))) {
-        const Category = (await import('../models/BlogCategory.js')).default;
-        if (resolvedCategory && resolvedCategory.match && resolvedCategory.match(/^[0-9a-fA-F]{24}$/)) {
-          const foundCategory = await Category.findById(resolvedCategory);
-          if (foundCategory?.name) {
-            resolvedCategory = foundCategory.name;
-            resolvedDisplayCategory = resolvedDisplayCategory || foundCategory.name;
-          }
-        }
-      }
-      if (!resolvedDisplayCategory && resolvedCategory) {
-        resolvedDisplayCategory = resolvedCategory;
-      }
-    } catch (catErr) {
-      console.warn('Category resolution warning (updateBlog):', catErr?.message);
-      if (!resolvedDisplayCategory && resolvedCategory) {
-        resolvedDisplayCategory = resolvedCategory;
-      }
-    }
-
     // Transform frontend data to database format
     const updateData = {
       ...req.body,
-      category: resolvedCategory,
-      displayCategory: resolvedDisplayCategory,
       author: {
         name: req.body.authorName || blog.author?.name || 'Admin',
         avatar: req.body.authorAvatar || blog.author?.avatar || 'https://via.placeholder.com/150'
@@ -432,18 +359,6 @@ export const getRelatedBlogs = async (req, res) => {
 // Get all published blog posts for public consumption
 export const getPublishedBlogs = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, returning empty blog list');
-      return res.status(200).json({
-        blogs: [],
-        totalPages: 0,
-        currentPage: 1,
-        totalItems: 0,
-        message: 'Database temporarily unavailable'
-      });
-    }
-
     const { page = 1, limit = 10, category, search } = req.query;
     
     // Build query based on filters - only show published posts
@@ -463,7 +378,13 @@ export const getPublishedBlogs = async (req, res) => {
       .exec();
 
     // Transform blogs to match frontend expectations
-    const transformedBlogs = await transformBlogsData(blogs);
+    const transformedBlogs = blogs.map(blog => ({
+      ...blog.toObject(),
+      authorName: blog.author?.name || '',
+      featuredImage: blog.image || '',
+      metaTitle: blog.title,
+      metaDescription: blog.excerpt
+    }));
 
     // Get total documents
     const count = await Blog.countDocuments(query);
@@ -484,12 +405,6 @@ export const getPublishedBlogs = async (req, res) => {
 // Get featured blog posts (latest published posts)
 export const getFeaturedBlogs = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, returning empty featured blogs list');
-      return res.status(200).json([]);
-    }
-
     const { limit = 3 } = req.query;
     
     const featuredBlogs = await Blog.find({ status: 'published' })
@@ -516,12 +431,6 @@ export const getFeaturedBlogs = async (req, res) => {
 // Get a blog post by slug for public viewing
 export const getBlogBySlug = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, cannot fetch blog by slug');
-      return res.status(503).json({ message: 'Database temporarily unavailable' });
-    }
-
     const { slug } = req.params;
     console.log('getBlogBySlug called with slug:', slug);
     
@@ -606,4 +515,4 @@ export const incrementViewCount = async (req, res) => {
     console.error('Error incrementing view count:', error);
     return res.status(500).json({ message: 'Failed to increment view count', error: error.message });
   }
-};
+}; 
