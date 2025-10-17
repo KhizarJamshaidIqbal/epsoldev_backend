@@ -34,8 +34,11 @@ const BlogSchema = new mongoose.Schema({
   },
   displayCategory: {
     type: String,
-    required: [true, 'Display category is required'],
-    trim: true
+    required: false,
+    trim: true,
+    default: function() {
+      return this.category || 'General';
+    }
   },
   date: {
     type: Date,

@@ -209,6 +209,8 @@ export const getBlogById = async (req, res) => {
 // Create a new blog post
 export const createBlog = async (req, res) => {
   try {
+    console.log('📝 Creating blog with data:', JSON.stringify(req.body, null, 2));
+    
     // Transform frontend data to database format
     const blogData = {
       ...req.body,
@@ -216,9 +218,13 @@ export const createBlog = async (req, res) => {
         name: req.body.authorName || 'Admin',
         avatar: req.body.authorAvatar || 'https://via.placeholder.com/150'
       },
-      image: req.body.featuredImage || req.body.image || ''
+      image: req.body.featuredImage || req.body.image || '',
+      // Auto-generate displayCategory from category if not provided
+      displayCategory: req.body.displayCategory || req.body.category || 'General'
     };
 
+    console.log('✅ Transformed blog data:', JSON.stringify(blogData, null, 2));
+    
     const newBlog = new Blog(blogData);
     const savedBlog = await newBlog.save();
 
