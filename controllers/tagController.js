@@ -3,18 +3,16 @@ import Tag from '../models/Tag.js';
 // Get all tags
 export const getAllTags = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, returning empty tags list');
-      return res.status(200).json([]);
-    }
-
+    console.log('🏷️  getAllTags called');
+    console.log('📊 Query params:', req.query);
+    
     const { type, search } = req.query;
     let query = {};
 
     // Filter by type if provided
     if (type) {
       query.type = type;
+      console.log('🔍 Filtering by type:', type);
     }
 
     // Search by name or description if provided
@@ -23,12 +21,16 @@ export const getAllTags = async (req, res) => {
         { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
       ];
+      console.log('🔍 Searching with term:', search);
     }
 
+    console.log('📝 Final query:', JSON.stringify(query));
     const tags = await Tag.find(query).sort({ name: 1 });
+    console.log(`✅ Found ${tags.length} tags`);
+    
     return res.status(200).json(tags);
   } catch (error) {
-    console.error('Error fetching tags:', error);
+    console.error('❌ Error fetching tags:', error);
     return res.status(500).json({ message: 'Failed to fetch tags', error: error.message });
   }
 };
@@ -36,12 +38,6 @@ export const getAllTags = async (req, res) => {
 // Get a single tag by ID or slug
 export const getTagById = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, cannot fetch tag');
-      return res.status(503).json({ message: 'Database temporarily unavailable' });
-    }
-
     const { id } = req.params;
     let tag;
 
@@ -171,12 +167,6 @@ export const deleteTag = async (req, res) => {
 // Get popular tags
 export const getPopularTags = async (req, res) => {
   try {
-    // Check if database is connected
-    if (!req.dbConnected) {
-      console.warn('Database not connected, returning empty popular tags list');
-      return res.status(200).json([]);
-    }
-
     const { limit = 10, type } = req.query;
     let query = {};
 
@@ -208,5 +198,39 @@ export const updateTagCount = async (tagIds, increment = true) => {
     );
   } catch (error) {
     console.error('Error updating tag count:', error);
+  }
+};
+
+// Debug endpoint to check database connection and tags
+export const debugTags = async (req, res) => {
+  try {
+    const mongoose = await import('mongoose');
+    const dbState = mongoose.default.connection.readyState;
+    const stateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    
+    console.log('🔍 Debug Tags Endpoint Called');
+    console.log('📊 Database State:', stateMap[dbState]);
+    console.log('🗄️  Database Name:', mongoose.default.connection.name);
+    console.log('🏷️  Collection Name:', Tag.collection.name);
+    
+    const totalTags = await Tag.countDocuments();
+    console.log('📈 Total tags in database:', totalTags);
+    
+    const allTags = await Tag.find({}).limit(5);
+    console.log('📝 Sample tags:', allTags.map(t => ({ name: t.name, type: t.type })));
+    
+    return res.status(200).json({
+      database: {
+        state: stateMap[dbState],
+        name: mongoose.default.connection.name,
+        host: mongoose.default.connection.host
+      },
+      collection: Tag.collection.name,
+      totalTags,
+      sampleTags: allTags.map(t => ({ id: t._id, name: t.name, type: t.type }))
+    });
+  } catch (error) {
+    console.error('❌ Debug endpoint error:', error);
+    return res.status(500).json({ message: 'Debug failed', error: error.message });
   }
 };

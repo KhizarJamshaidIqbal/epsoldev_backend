@@ -5,11 +5,15 @@ import {
   createTag,
   updateTag,
   deleteTag,
-  getPopularTags
+  getPopularTags,
+  debugTags
 } from '../controllers/tagController.js';
 import { auth, requireAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Debug route (temporary - for troubleshooting)
+router.get('/debug', debugTags);
 
 // Public routes
 router.get('/', getAllTags);
