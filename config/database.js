@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
  * @returns {Promise<boolean>} - Returns true if connection is successful
  */
 export const connectToDatabase = async () => {
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://khizarjamshaidiqbal:uJLam6FepeeYgpWL@cluster0.ygxxdws.mongodb.net/epsoldev?retryWrites=true&w=majority&appName=Cluster0';
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:2P4AJ689oxziNvE7sI@69.57.161.11:27017/epsoldev?authSource=admin';
   
   try {
     const conn = await mongoose.connect(MONGODB_URI);

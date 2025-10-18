@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
-    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://khizarjamshaidiqbal:uJLam6FepeeYgpWL@cluster0.ygxxdws.mongodb.net/epsoldev?retryWrites=true&w=majority&appName=Cluster0';
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:2P4AJ689oxziNvE7sI@69.57.161.11:27017/epsoldev?authSource=admin';
   
   console.log('🔍 Attempting to connect to MongoDB...');
   console.log('📍 Connection string:', MONGODB_URI.includes('mongodb+srv') ? 'MongoDB Atlas' : 'Local MongoDB');
