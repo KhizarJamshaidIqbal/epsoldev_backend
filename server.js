@@ -35,6 +35,7 @@ try {
 
 // Core middleware - CORS configuration
 const allowedOrigins = [
+  'https://api.epsoldev.com',
   'http://localhost:5173',
   'http://localhost:8080', 
   'http://localhost:3000',
