@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { registerRoutes } from './routes/index.js';
 
+
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 5000;
+
 // Configure path for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,7 +22,7 @@ console.log('✅ Environment loaded. JWT_SECRET exists:', !!process.env.JWT_SECR
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 5001;
+// const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
 let isDbConnected = false;
@@ -171,13 +175,19 @@ app.use('*', (req, res) => {
 });
 
 // Start server (only in development or when not on Vercel)
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 Database: ${isDbConnected ? 'Connected' : 'Disconnected'}`);
-    console.log(`🌐 CORS enabled for multiple origins: 5173, 8080, 3000, 4173`);
-  });
-}
+// if (process.env.NODE_ENV !== 'production') {
+//   app.listen(PORT, () => {
+//     console.log(`🚀 Server running on port ${PORT}`);
+//     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+//     console.log(`🔗 Database: ${isDbConnected ? 'Connected' : 'Disconnected'}`);
+//     console.log(`🌐 CORS enabled for multiple origins: 5173, 8080, 3000, 4173`);
+//   });
+// }
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Database: ${isDbConnected ? 'Connected' : 'Disconnected'}`);
+  console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ') || '(no explicit origins)'}`);
+});
 
 export default app;
