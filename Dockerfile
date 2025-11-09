@@ -1,23 +1,15 @@
-# Use Node.js LTS version
-FROM node:20-alpine
-
-# Set working directory
+# Use Debian-based image (works better with sharp prebuilt binaries)
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
+# Don't use `npm ci` since lockfile is out of sync
+RUN npm install --omit=dev
 
-# Install production dependencies
-RUN npm ci --only=production
-
-# Copy application code
-COPY . .
-
-# Expose the port (adjust if your app uses a different port)
-EXPOSE 5001
-
-# Set environment to production
+FROM node:20-bookworm-slim AS runner
+WORKDIR /app
 ENV NODE_ENV=production
-
-# Start the application
-CMD ["npm", "start"]
+ENV PORT=5000
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+EXPOSE 5000
+CMD ["npm","start"]
