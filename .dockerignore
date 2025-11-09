@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+.vercel
+.kombai
+*.md
+.DS_Store
+uploads/*
+!uploads/.gitkeep
+test-*.js
+simple-email-test.js
