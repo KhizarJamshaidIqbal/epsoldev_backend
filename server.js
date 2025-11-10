@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { registerRoutes } from './routes/index.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 
 const HOST = process.env.HOST || '0.0.0.0';
@@ -146,34 +147,8 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Handle 404 errors
-app.use('*', (req, res) => {
-  res.status(404).json({
-    message: 'Route not found',
-    path: req.originalUrl,
-    timestamp: new Date().toISOString(),
-    availableEndpoints: [
-      '/api',
-      '/api/health',
-      '/api/test',
-      '/api/auth',
-      '/api/blog',
-      '/api/technologies',
-      '/api/services',
-      '/api/portfolio'
-    ]
-  });
-});
+// Error handling middleware - must be last
+app.use(errorHandler);
 
 // Start server (only in development or when not on Vercel)
 // if (process.env.NODE_ENV !== 'production') {

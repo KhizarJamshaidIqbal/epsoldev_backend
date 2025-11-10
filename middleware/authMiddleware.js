@@ -14,9 +14,8 @@ export const auth = (req, res, next) => {
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.log('❌ Auth failed: No token or invalid format');
-      return res.status(401).json({ 
-        message: 'Access denied. No token provided or invalid format.' 
-      });
+      res.status(401);
+      throw new Error('Access denied. No token provided or invalid format.');
     }
 
     // Extract token from "Bearer TOKEN"
@@ -40,18 +39,15 @@ export const auth = (req, res, next) => {
   } catch (error) {
     console.log('❌ Auth error:', error.name, error.message);
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        message: 'Access denied. Token has expired.' 
-      });
+      res.status(401);
+      return next(new Error('Access denied. Token has expired.'));
     } else if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        message: 'Access denied. Invalid token.' 
-      });
+      res.status(401);
+      return next(new Error('Access denied. Invalid token.'));
     } else {
       console.error('Auth middleware error:', error);
-      return res.status(500).json({ 
-        message: 'Internal server error during authentication.' 
-      });
+      res.status(error.message.includes('Access denied') ? 401 : 500);
+      return next(error);
     }
   }
 };
@@ -87,15 +83,13 @@ export const optionalAuth = (req, res, next) => {
 // Admin-only middleware (requires authentication first)
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({ 
-      message: 'Access denied. Authentication required.' 
-    });
+    res.status(401);
+    return next(new Error('Access denied. Authentication required.'));
   }
 
   if (!req.user.isAdmin && req.user.role !== 'admin') {
-    return res.status(403).json({ 
-      message: 'Access denied. Admin privileges required.' 
-    });
+    res.status(403);
+    return next(new Error('Access denied. Admin privileges required.'));
   }
 
   next();
