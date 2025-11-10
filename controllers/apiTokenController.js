@@ -5,35 +5,62 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 // @route   GET /api/tokens
 // @access  Private (Admin)
 export const getApiTokens = asyncHandler(async (req, res) => {
-  const tokens = await ApiToken.find({ createdBy: req.user.id })
-    .sort({ createdAt: -1 })
-    .populate('createdBy', 'name email');
+  // Ensure user is authenticated
+  if (!req.user || !req.user.id) {
+    res.status(401);
+    throw new Error('Authentication required. User not found in request.');
+  }
 
-  res.status(200).json({
-    success: true,
-    count: tokens.length,
-    data: tokens,
-  });
+  try {
+    const tokens = await ApiToken.find({ createdBy: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('createdBy', 'name email')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: tokens.length,
+      data: tokens,
+    });
+  } catch (error) {
+    console.error('Error fetching API tokens:', error);
+    res.status(500);
+    throw new Error('Failed to fetch API tokens: ' + error.message);
+  }
 });
 
 // @desc    Get single API token
 // @route   GET /api/tokens/:id
 // @access  Private (Admin)
 export const getApiToken = asyncHandler(async (req, res) => {
-  const token = await ApiToken.findOne({
-    _id: req.params.id,
-    createdBy: req.user.id,
-  }).populate('createdBy', 'name email');
-
-  if (!token) {
-    res.status(404);
-    throw new Error('API token not found');
+  if (!req.user || !req.user.id) {
+    res.status(401);
+    throw new Error('Authentication required.');
   }
 
-  res.status(200).json({
-    success: true,
-    data: token,
-  });
+  try {
+    const token = await ApiToken.findOne({
+      _id: req.params.id,
+      createdBy: req.user.id,
+    }).populate('createdBy', 'name email').lean();
+
+    if (!token) {
+      res.status(404);
+      throw new Error('API token not found');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: token,
+    });
+  } catch (error) {
+    console.error('Error fetching API token:', error);
+    if (error.message === 'API token not found') {
+      throw error;
+    }
+    res.status(500);
+    throw new Error('Failed to fetch API token: ' + error.message);
+  }
 });
 
 // @desc    Create new API token
