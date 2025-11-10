@@ -9,7 +9,7 @@ const getJWTConfig = () => {
 };
 
 // Generate JWT token
-const generateToken = (userId) => {
+const generateToken = (userId, userRole = "user", userIsAdmin = false) => {
   const { JWT_SECRET, JWT_EXPIRES_IN } = getJWTConfig();
   
   // Log on first token generation to verify config
@@ -22,7 +22,7 @@ const generateToken = (userId) => {
     generateToken.logged = true;
   }
   
-  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ id: userId, role: userRole, isAdmin: userIsAdmin }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
 // Register new user
@@ -48,7 +48,7 @@ export const register = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role, user.isAdmin);
 
     // Remove password from response
     const userResponse = user.toJSON();
@@ -102,7 +102,7 @@ export const login = async (req, res) => {
     const user = await User.findByCredentials(email, password);
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role, user.isAdmin);
 
     // Remove password from response
     const userResponse = user.toJSON();
