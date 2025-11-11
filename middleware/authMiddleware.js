@@ -207,3 +207,36 @@ export const requireAdmin = (req, res, next) => {
 
 // Combined auth + admin middleware
 export const adminAuth = [auth, requireAdmin];
+
+// Flexible authentication - supports both API tokens and JWT tokens
+export const flexibleAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        message: 'Access denied. No token provided or invalid format.',
+        error: 'Something went wrong',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const token = authHeader.substring(7);
+    
+    // Check if it's an API token (starts with epd_)
+    if (token.startsWith('epd_')) {
+      // Use API token authentication
+      return apiTokenAuth(req, res, next);
+    } else {
+      // Use JWT authentication
+      return auth(req, res, next);
+    }
+  } catch (error) {
+    console.error('❌ Flexible Auth error:', error);
+    return res.status(500).json({ 
+      message: 'Internal server error during authentication.',
+      error: 'Something went wrong',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
