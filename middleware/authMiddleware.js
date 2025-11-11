@@ -1,4 +1,108 @@
 import jwt from 'jsonwebtoken';
+import ApiToken from '../models/ApiToken.js';
+import User from '../models/User.js';
+
+// API Token Authentication middleware
+export const apiTokenAuth = async (req, res, next) => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    
+    console.log('🔑 API Token Auth Middleware - Headers:', {
+      authorization: authHeader ? `${authHeader.substring(0, 30)}...` : 'none',
+      path: req.path,
+      method: req.method
+    });
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ API Token Auth failed: No token or invalid format');
+      return res.status(401).json({ 
+        message: 'Access denied. No token provided or invalid format.',
+        error: 'Something went wrong',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Extract token from "Bearer TOKEN"
+    const token = authHeader.substring(7);
+    
+    // Check if it's an API token (starts with epd_)
+    if (!token.startsWith('epd_')) {
+      console.log('❌ Not an API token format');
+      return res.status(401).json({ 
+        message: 'Access denied. Invalid token format.',
+        error: 'Something went wrong',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Find the API token in database
+    const apiToken = await ApiToken.findOne({ token }).populate('createdBy');
+    
+    if (!apiToken) {
+      console.log('❌ API token not found in database');
+      return res.status(401).json({ 
+        message: 'Access denied. Invalid token.',
+        error: 'Something went wrong',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Check if token is valid (active and not expired)
+    if (!apiToken.isValid()) {
+      console.log('❌ API token is invalid or expired');
+      return res.status(401).json({ 
+        message: 'Access denied. Token is inactive or expired.',
+        error: 'Something went wrong',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Check permissions for write operations
+    const isWriteOperation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+    if (isWriteOperation && !apiToken.permissions.includes('write') && !apiToken.permissions.includes('admin')) {
+      console.log('❌ API token lacks write permissions');
+      return res.status(403).json({ 
+        message: 'Access denied. Token does not have write permissions.',
+        error: 'Insufficient permissions',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log('✅ API Token verified successfully:', {
+      tokenName: apiToken.name,
+      userId: apiToken.createdBy._id,
+      permissions: apiToken.permissions
+    });
+
+    // Update last used timestamp and usage count
+    const clientIp = req.ip || req.connection.remoteAddress;
+    await apiToken.updateLastUsed(clientIp);
+
+    // Attach user info to request object (from token creator)
+    req.user = {
+      id: apiToken.createdBy._id,
+      role: apiToken.createdBy.role,
+      isAdmin: apiToken.createdBy.isAdmin,
+      email: apiToken.createdBy.email,
+      name: apiToken.createdBy.name,
+      apiTokenId: apiToken._id,
+      apiTokenName: apiToken.name,
+      permissions: apiToken.permissions
+    };
+    req.userId = apiToken.createdBy._id;
+    req.isApiToken = true;
+
+    next();
+  } catch (error) {
+    console.error('❌ API Token Auth error:', error);
+    return res.status(500).json({ 
+      message: 'Internal server error during authentication.',
+      error: 'Something went wrong',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
 
 // Authentication middleware to verify JWT tokens
 export const auth = (req, res, next) => {
@@ -14,8 +118,9 @@ export const auth = (req, res, next) => {
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.log('❌ Auth failed: No token or invalid format');
-      res.status(401);
-      throw new Error('Access denied. No token provided or invalid format.');
+      return res.status(401).json({ 
+        message: 'Access denied. No token provided or invalid format.' 
+      });
     }
 
     // Extract token from "Bearer TOKEN"
@@ -39,15 +144,18 @@ export const auth = (req, res, next) => {
   } catch (error) {
     console.log('❌ Auth error:', error.name, error.message);
     if (error.name === 'TokenExpiredError') {
-      res.status(401);
-      return next(new Error('Access denied. Token has expired.'));
+      return res.status(401).json({ 
+        message: 'Access denied. Token has expired.' 
+      });
     } else if (error.name === 'JsonWebTokenError') {
-      res.status(401);
-      return next(new Error('Access denied. Invalid token.'));
+      return res.status(401).json({ 
+        message: 'Access denied. Invalid token.' 
+      });
     } else {
       console.error('Auth middleware error:', error);
-      res.status(error.message.includes('Access denied') ? 401 : 500);
-      return next(error);
+      return res.status(500).json({ 
+        message: 'Internal server error during authentication.' 
+      });
     }
   }
 };
@@ -83,13 +191,15 @@ export const optionalAuth = (req, res, next) => {
 // Admin-only middleware (requires authentication first)
 export const requireAdmin = (req, res, next) => {
   if (!req.user) {
-    res.status(401);
-    return next(new Error('Access denied. Authentication required.'));
+    return res.status(401).json({ 
+      message: 'Access denied. Authentication required.' 
+    });
   }
 
   if (!req.user.isAdmin && req.user.role !== 'admin') {
-    res.status(403);
-    return next(new Error('Access denied. Admin privileges required.'));
+    return res.status(403).json({ 
+      message: 'Access denied. Admin privileges required.' 
+    });
   }
 
   next();
